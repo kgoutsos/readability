@@ -1,24 +1,16 @@
+#!/usr/bin/env python3
+
 #coding=utf-8
 
-# author: kingwkb
-# blog : http://yanghao.org/blog/
-#
-# this is code demo: http://yanghao.org/tools/readability
-
-from __future__ import division
 import os
 import sys
 import urllib
-import urlparse
+import urllib.parse
 import re
-import HTMLParser
 import math
-import urlparse
 import posixpath
 
-import chardet
-from BeautifulSoup import BeautifulSoup
-#from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup
 
 class Readability:
 
@@ -63,7 +55,7 @@ class Readability:
         self.input = self.regexps['replaceBrs'].sub("</p><p>",self.input)
         self.input = self.regexps['replaceFonts'].sub("<\g<1>span>",self.input)
 
-        self.html = BeautifulSoup(self.input)
+        self.html = BeautifulSoup(self.input, features="html.parser")
 
 #        print self.html.originalEncoding
 #        print self.html
@@ -90,8 +82,7 @@ class Readability:
     def grabArticle(self):
 
         for elem in self.html.findAll(True):
-
-            unlikelyMatchString = elem.get('id','')+elem.get('class','')
+            unlikelyMatchString = elem.get('id','') + "".join(elem.get('class',''))
 
             if self.regexps['unlikelyCandidates'].search(unlikelyMatchString) and \
                 not self.regexps['okMaybeItsACandidate'].search(unlikelyMatchString) and \
@@ -103,7 +94,8 @@ class Readability:
 #                pass
 
             if elem.name == 'div':
-                s = elem.renderContents(encoding=None)
+                s = elem.renderContents().decode()
+
                 if not self.regexps['divToPElements'].search(s):
                     elem.name = 'p'
 
@@ -186,14 +178,13 @@ class Readability:
 
         self.fixImagesPath(content)
 
-        content = content.renderContents(encoding=None)
+        content = content.renderContents().decode()
 
         content = self.regexps['killBreaks'].sub("<br />", content)
 
         return content
 
     def clean(self,e ,tag):
-
         targetList = e.findAll(tag)
         isEmbed = 0
         if tag =='object' or tag == 'embed':
@@ -202,7 +193,8 @@ class Readability:
         for target in targetList:
             attributeValues = ""
             for attribute in target.attrs:
-                attributeValues += target[attribute[0]]
+                if attribute[0] in target:
+                    attributeValues += target[attribute[0]]
 
             if isEmbed and self.regexps['videos'].search(attributeValues):
                 continue
@@ -212,7 +204,6 @@ class Readability:
             target.extract()
 
     def cleanStyle(self, e):
-
         for elem in e.findAll(True):
             del elem['class']
             del elem['id']
